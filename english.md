@@ -1,7 +1,7 @@
 # simurest
 Server simulator
 
-[**ENGLISH**](./english.md)
+[**PORTUGUÊS**](./README.md)
 
 Simulates a REST server: 
 
