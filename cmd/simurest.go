@@ -17,126 +17,36 @@ limitations under the License.
 package main
 
 import (
-	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
-	"strings"
 
 	flag "github.com/spf13/pflag"
+
+	backend "network.golang/simurest/internal"
+	util "network.golang/simurest/util"
 )
-
-/*
-	"fmt"
-	"net/http"
-	"flag"
-	"github.com/gorilla/mux"
-*/
-
-const disclaimer = `
-SimuRest - Service simulator - V. 0.1
-Usage: 
-	simurest [
-		[--quiet | -q <do not print this message (default true)>]
-		[--method | -m <http method (default=GET): GET | POST | HEAD | DELETE | PUT>]
-		[--port | -p <tcp port (default=8080)> ]
-		[--uri | -u <http URI (default="/")]
-		[--status | -s <http Status of the response (default=200)]
-		[--body | -b <http response body (default: '{"status": "ok"}')]
-	]
-
-	uri can be exact or finish with wildcard (*):
-	-u /api/user/1 : Only accepts exact uri
-	-u "/api/user*" : accept any uri that begins with "/api/user" (if using * don't forget to enclose in double quotes)
-`
 
 var (
-	flagQuiet  *bool
-	flagMethod *string
-	flagPort   *int
-	flagUri    *string
-	flagStatus *int
-	flagBody   *string
+	flags util.Flags
 )
 
-func setFlags() {
-	flagQuiet = flag.BoolP("quiet", "q", false, "to supress the disclaimer header")
-	flagMethod = flag.StringP("method", "m", "GET", "http method to accept")
-	flagPort = flag.IntP("port", "p", 8080, "tcp port to listen")
-	flagUri = flag.StringP("uri", "u", "/", "uri to handle")
-	flagStatus = flag.IntP("status", "s", 200, "http status to return")
-	flagBody = flag.StringP("body", "b", `{"status": "ok"}`, "response body to return")
+func init() {
+	flags = util.Flags{}
+	flags.FlagQuiet = flag.BoolP("quiet", "q", false, "to supress the disclaimer header")
+	flags.FlagMethod = flag.StringP("method", "m", "GET", "http method to accept")
+	flags.FlagPort = flag.IntP("port", "p", 8080, "tcp port to listen")
+	flags.FlagUri = flag.StringP("uri", "u", "/", "uri to handle")
+	flags.FlagStatus = flag.IntP("status", "s", 200, "http status to return")
+	flags.FlagBody = flag.StringP("body", "b", `{"status": "ok"}`, "response body to return")
+
 }
-
-func setupLog() log.Logger {
-	logger := log.Default()
-	return *logger
-}
-
-type JSONString string
-
-func (j JSONString) MarshalJSON() ([]byte, error) {
-	return []byte(j), nil
-}
-
-func WriteResponse(status int, body string, w http.ResponseWriter) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	if len(body) > 0 {
-		content, _ := json.Marshal(JSONString(body))
-		w.Write(content)
-	}
-}
-
-func checkUrl(uri string) bool {
-	if (*flagUri)[len((*flagUri))-1] == '*' {
-		if strings.Contains((*flagUri), uri) {
-			return true
-		} else if uri == *flagUri {
-			return true
-		}
-	}
-	return false
-}
-
-func checkMethod(method string) bool {
-	if method == *flagMethod {
-		return true
-	}
-	return false
-}
-
-func dynHandler() http.Handler {
-	return http.HandlerFunc(
-		func(w http.ResponseWriter, req *http.Request) {
-			logger.Println(
-				fmt.Sprintf("%v -> %v %v%v", strings.Split(req.Proto, "/")[0], req.Method, req.Host, req.URL.Path))
-			if !checkUrl(req.URL.Path) {
-				WriteResponse(404, "Not found", w)
-				return
-			}
-			if !checkMethod(req.Method) {
-				WriteResponse(405, "Method not allowed", w)
-				return
-			}
-			if len(*flagBody) == 0 || *flagStatus == 201 {
-				WriteResponse(*flagStatus, "", w)
-			}
-			WriteResponse(*flagStatus, *flagBody, w)
-		},
-	)
-}
-
-var logger = setupLog()
 
 func main() {
-	setFlags()
 	flag.Parse()
-	if !*flagQuiet {
-		logger.Println(disclaimer)
-	}
-	hostPort := fmt.Sprintf(":%d", *flagPort)
-	http.Handle("/", dynHandler())
+	backend.Logger = backend.SetupLog()
+	backend.FlagsList = []util.Flags{flags}
+	backend.DisclaimerPrint()
+	hostPort := fmt.Sprintf(":%d", *flags.FlagPort)
+	http.Handle("/", backend.DynHandler())
 	http.ListenAndServe(hostPort, nil)
-
 }

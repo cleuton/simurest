@@ -3,6 +3,8 @@ Server simulator
 
 [**ENGLISH**](./english.md)
 
+** New ** Ainda trabalhando na versão 0.2. Alguns bugs corrigidos e acrescentando testes unitários.
+
 Simula um servidor, por enquanto REST. Você pode especificar: 
 
 ```
